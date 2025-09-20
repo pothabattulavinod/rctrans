@@ -42,19 +42,17 @@ def fetch_card_data(card):
 
 def fetch_all_cards(cards):
     all_data = []
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    with ThreadPoolExecutor(max_workers=20) as executor:  # parallel 20 threads
         results = executor.map(fetch_card_data, cards)
         for result in results:
             if result:
                 all_data.append(result)
 
-    # Save with timestamp in filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"data_{timestamp}.json"
-    with open(filename, "w") as f:
+    # Save latest data to transactions.json
+    with open("transactions.json", "w") as f:
         json.dump(all_data, f, indent=4)
 
-    print(f"All card data saved to {filename}!")
+    print("All card data saved to transactions.json!")
 
 if __name__ == "__main__":
     with open("cards.json") as f:
