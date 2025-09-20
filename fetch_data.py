@@ -22,12 +22,9 @@ def fetch_card_data(card):
 
         # Assume first table is member/KYC info
         table = soup.find('table')
-        if not table:
-            print(f"No member/KYC table found for CARDNO {card['CARDNO']}")
-            kyc_data = []
-        else:
+        kyc_data = []
+        if table:
             rows = table.find_all('tr')
-            kyc_data = []
             for row in rows[1:]:  # skip header
                 cols = [c.text.strip() for c in row.find_all('td')]
                 if cols:
@@ -46,7 +43,7 @@ def fetch_card_data(card):
         return None
 
 def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch monthly transaction details for the card."""
+    """Fetch monthly transaction details for the card as structured JSON."""
     url = BASE_URL + card["CARDNO"]
     try:
         response = requests.get(url, timeout=10)
@@ -57,7 +54,7 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
         tables = soup.find_all('table')
         transaction_table = None
         for table in tables:
-            headers = [th.text.strip() for th in table.find_all('th')]
+            headers = [th.get_text(strip=True) for th in table.find_all('th')]
             if 'Sl.No' in headers and 'Avail. Date' in headers:
                 transaction_table = table
                 break
@@ -66,18 +63,29 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
             print(f"No transaction table found for CARDNO {card['CARDNO']}")
             return []
 
-        rows = transaction_table.find_all('tr')
+        rows = transaction_table.find_all('tr')[3:]  # Skip 3 header rows
         transactions = []
 
-        for row in rows[1:]:  # skip header
-            cols = [c.text.strip() for c in row.find_all('td')]
-            if cols:
+        for row in rows:
+            cols = [td.get_text(strip=True) for td in row.find_all('td')]
+            if len(cols) >= 9:
                 try:
-                    avail_date = datetime.strptime(cols[5], "%d-%m-%Y")  # 6th column = Avail. Date
+                    avail_date = datetime.strptime(cols[5], "%d-%m-%Y")
                     if avail_date.month == month and avail_date.year == year:
-                        transactions.append(cols)
-                except (ValueError, IndexError):
-                    continue  # Skip rows with invalid/missing date
+                        transaction = {
+                            "SlNo": int(cols[0]),
+                            "Member": cols[1],
+                            "AvailedFPS": cols[2],
+                            "AllottedMonth": cols[3],
+                            "AllottedYear": int(cols[4]),
+                            "AvailDate": avail_date.strftime("%Y-%m-%d"),
+                            "AvailType": cols[6],
+                            "SugarKG": float(cols[7]),
+                            "RiceKG": float(cols[8])
+                        }
+                        transactions.append(transaction)
+                except ValueError:
+                    continue  # Skip rows with invalid data
 
         return transactions
 
@@ -87,38 +95,27 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
 
 def update_transactions(data, monthly_data):
     """Update transactions.json with card KYC and monthly transaction info."""
-    # Load existing transactions
     if os.path.exists(TRANSACTIONS_FILE):
         with open(TRANSACTIONS_FILE, "r") as f:
             transactions = json.load(f)
     else:
         transactions = []
 
-    # Check if card already exists
     existing_card = next((t for t in transactions if t.get("CARDNO") == data["CARDNO"]), None)
     if existing_card:
-        # Update KYC info
         existing_card["KYC_INFO"] = data.get("KYC_INFO", existing_card.get("KYC_INFO", []))
-        # Update monthly transactions, append only new rows
-        existing_monthly = existing_card.get("MONTHLY_TRANSACTIONS", [])
-        for t in monthly_data:
-            if t not in existing_monthly:
-                existing_monthly.append(t)
-        existing_card["MONTHLY_TRANSACTIONS"] = existing_monthly
+        existing_card["MONTHLY_TRANSACTIONS"] = monthly_data
         existing_card["LAST_UPDATED"] = data["LAST_UPDATED"]
     else:
-        # New card entry
         data["MONTHLY_TRANSACTIONS"] = monthly_data
         transactions.append(data)
 
-    # Save updated transactions
     with open(TRANSACTIONS_FILE, "w") as f:
         json.dump(transactions, f, indent=4)
 
     print(f"Data for CARDNO {data['CARDNO']} saved/updated in {TRANSACTIONS_FILE}")
 
 if __name__ == "__main__":
-    # Load cards from 10.json
     if not os.path.exists("10.json"):
         print("10.json file not found!")
         exit(1)
@@ -126,13 +123,11 @@ if __name__ == "__main__":
     with open("10.json", "r") as f:
         cards = json.load(f)
 
-    # Find target card
     target_card = next((c for c in cards if c.get("CARDNO") == TARGET_CARDNO), None)
     if not target_card:
         print(f"CARDNO {TARGET_CARDNO} not found in 10.json")
         exit(1)
 
-    # Fetch KYC and monthly transaction data
     kyc_data = fetch_card_data(target_card)
     monthly_data = fetch_monthly_transactions(target_card, month=TARGET_MONTH, year=TARGET_YEAR)
 
@@ -140,3 +135,4 @@ if __name__ == "__main__":
         update_transactions(kyc_data, monthly_data)
     else:
         print("Failed to fetch card data.")
+    
