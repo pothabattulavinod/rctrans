@@ -3,30 +3,35 @@ name: Update Current Month Data
 on:
   schedule:
     - cron: '0 * * * *'  # runs every hour
-  workflow_dispatch:  # allows manual trigger
+  workflow_dispatch:      # allows manual trigger
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout the repository
       - uses: actions/checkout@v3
 
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: pip install requests beautifulsoup4
 
+      # Step 4: Run your scraper
       - name: Run scraper
         run: python fetch_data.py
 
+      # Step 5: Commit & Push transactions.json using GITHUB_TOKEN
       - name: Commit & Push transactions.json
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add transactions.json
           git diff --cached --quiet || git commit -m "Update current month transactions"
-          git push
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
