@@ -29,9 +29,10 @@ jobs:
 
       # Step 5: Commit & Push transactions.json using GITHUB_TOKEN
       - name: Commit & Push transactions.json
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add transactions.json
-          git diff --cached --quiet || git commit -m "Update current month transactions"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+  run: |
+    git config --global user.name "github-actions"
+    git config --global user.email "github-actions@github.com"
+    git add transactions.json
+    git diff --cached --quiet || git commit -m "Update current month transactions"
+    git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
+    
