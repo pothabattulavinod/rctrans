@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 import json
 from datetime import datetime
 
-URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno=2808446602"
+BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
 
-def fetch_data():
+def fetch_card_data(card):
+    url = BASE_URL + card["CARDNO"]
     try:
-        response = requests.get(URL)
+        response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table')
@@ -20,20 +21,34 @@ def fetch_data():
                 transition_history.append(cols)
 
         data = {
-            "CARDNO": "2822192607",
-            "HEAD_OF_THE_FAMILY": "Singuluri Venkatalakshmi",
-            "UNITS": "2",
+            "CARDNO": card["CARDNO"],
+            "HEAD_OF_THE_FAMILY": card["HEAD_OF_THE_FAMILY"],
+            "UNITS": card["UNITS"],
             "TRANSITION_HISTORY": transition_history,
             "LAST_UPDATED": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
-
-        with open("data.json", "w") as f:
-            json.dump(data, f, indent=4)
-
-        print("Data updated successfully!")
+        return data
 
     except Exception as e:
-        print("Error fetching data:", e)
+        print(f"Error fetching data for CARDNO {card['CARDNO']}: {e}")
+        return None
+
+def fetch_all_cards():
+    # Load all cards from cards.json
+    with open("cards.json") as f:
+        cards = json.load(f)
+
+    all_data = []
+    for card in cards:
+        data = fetch_card_data(card)
+        if data:
+            all_data.append(data)
+
+    # Save all card data to data.json
+    with open("data.json", "w") as f:
+        json.dump(all_data, f, indent=4)
+
+    print("All card data updated successfully!")
 
 if __name__ == "__main__":
-    fetch_data()
+    fetch_all_cards()
