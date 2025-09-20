@@ -1,1 +1,19 @@
-[]
+[
+    {
+        "CARDNO": "2822192607",
+        "MONTHLY_TRANSACTIONS": [
+            {
+                "SlNo": 1,
+                "Member": "Singuluri Venkatalakshmi",
+                "AvailedFPS": "0428010",
+                "AllottedMonth": "September",
+                "AllottedYear": 2025,
+                "AvailDate": "2025-09-04",
+                "AvailType": "Bio",
+                "SugarKG": 1.0,
+                "RiceKG": 10.0
+            }
+        ],
+        "LAST_UPDATED": "2025-09-20 13:58:44"
+    }
+]
