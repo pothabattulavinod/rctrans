@@ -2,11 +2,11 @@ import requests
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
 CURRENT_MONTH = datetime.now().month
 CURRENT_YEAR = datetime.now().year
+TARGET_CARDNO = "2822192607"
 
 def fetch_card_data(card):
     url = BASE_URL + card["CARDNO"]
@@ -22,16 +22,16 @@ def fetch_card_data(card):
             cols = [c.text.strip() for c in row.find_all('td')]
             if cols:
                 try:
-                    date_obj = datetime.strptime(cols[0], "%d-%m-%Y")  # adjust format if needed
+                    date_obj = datetime.strptime(cols[0], "%d-%m-%Y")  # adjust if format differs
                     if date_obj.month == CURRENT_MONTH and date_obj.year == CURRENT_YEAR:
                         transition_history.append(cols)
                 except:
                     continue
 
         return {
-            "CARDNO": card["CARDNO"],
-            "HEAD_OF_THE_FAMILY": card["HEAD_OF_THE_FAMILY"],
-            "UNITS": card["UNITS"],
+            "CARDNO": card.get("CARDNO"),
+            "HEAD_OF_THE_FAMILY": card.get("HEAD_OF_THE_FAMILY", "Unknown"),
+            "UNITS": card.get("UNITS", "Unknown"),
             "TRANSITION_HISTORY": transition_history,
             "LAST_UPDATED": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
@@ -40,21 +40,21 @@ def fetch_card_data(card):
         print(f"Error fetching CARDNO {card['CARDNO']}: {e}")
         return None
 
-def fetch_all_cards(cards):
-    all_data = []
-    with ThreadPoolExecutor(max_workers=20) as executor:  # parallel 20 threads
-        results = executor.map(fetch_card_data, cards)
-        for result in results:
-            if result:
-                all_data.append(result)
-
-    # Save latest data to transactions.json
-    with open("transactions.json", "w") as f:
-        json.dump(all_data, f, indent=4)
-
-    print("All card data saved to transactions.json!")
-
 if __name__ == "__main__":
+    # Load cards from 10.json
     with open("10.json") as f:
         cards = json.load(f)
-    fetch_all_cards(cards)
+
+    # Find the target card
+    target_card = next((c for c in cards if c.get("CARDNO") == TARGET_CARDNO), None)
+
+    if target_card:
+        data = fetch_card_data(target_card)
+        if data:
+            with open("2822192607_transition.json", "w") as f:
+                json.dump(data, f, indent=4)
+            print(f"Data for CARDNO {TARGET_CARDNO} saved to 2822192607_transition.json")
+        else:
+            print("Failed to fetch card data.")
+    else:
+        print(f"CARDNO {TARGET_CARDNO} not found in 10.json")
