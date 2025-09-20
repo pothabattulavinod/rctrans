@@ -9,34 +9,35 @@ from selenium.common.exceptions import NoSuchElementException, WebDriverExceptio
 
 # Configuration
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
-INPUT_FILE = "10.json"           # file containing card numbers
+INPUT_FILE = "10.json"           # File containing all card numbers
 TRANSACTIONS_FILE = "transactions.json"
 TARGET_MONTH = 9                 # September
 TARGET_YEAR = 2025
 
 def setup_driver(headless=True):
-    """Set up Selenium Chrome WebDriver with GitHub Actions compatible binary."""
+    """Set up Selenium Chrome WebDriver."""
     chrome_options = Options()
     if headless:
         chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    # GitHub Actions compatible Chromium binary
     chrome_options.binary_location = "/usr/bin/chromium-browser"
     return webdriver.Chrome(options=chrome_options)
 
 def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch transactions for a given card and month/year from AP POS."""
+    """Fetch transactions for a card and month/year."""
     try:
         driver = setup_driver()
         driver.get(BASE_URL + cardno)
-        time.sleep(3)  # Wait for page/table to load
+        time.sleep(3)
 
         try:
             table = driver.find_element(By.XPATH, "//table[contains(., 'Sl.No') and contains(., 'Avail. Date')]")
         except NoSuchElementException:
-            return []  # No table, no transactions
+            return []  # No transactions
 
-        rows = table.find_elements(By.TAG_NAME, "tr")[3:]  # Skip header rows
+        rows = table.find_elements(By.TAG_NAME, "tr")[3:]
         transactions = []
 
         for row in rows:
@@ -72,7 +73,7 @@ def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
             pass
 
 def update_transactions_json(cardno, monthly_data):
-    """Update transactions.json only if monthly_data is not empty."""
+    """Update transactions.json only if transactions exist."""
     if not monthly_data:
         return  # Skip cards with no transactions
 
@@ -99,7 +100,7 @@ def update_transactions_json(cardno, monthly_data):
     print(f"Updated transactions for CARDNO {cardno}")
 
 def load_card_numbers(file_path=INPUT_FILE):
-    """Load all card numbers from the input JSON file."""
+    """Load all card numbers from 10.json."""
     if not os.path.exists(file_path):
         print(f"{file_path} not found.")
         return []
@@ -120,7 +121,7 @@ def main():
     for cardno in card_numbers:
         try:
             monthly_data = fetch_monthly_transactions(cardno)
-            if monthly_data:  # Only update if there are transactions
+            if monthly_data:
                 update_transactions_json(cardno, monthly_data)
             else:
                 print(f"No transactions for CARDNO {cardno}, skipping.")
