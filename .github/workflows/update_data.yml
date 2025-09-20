@@ -2,8 +2,8 @@ name: Update Current Month Data
 
 on:
   schedule:
-    - cron: '0 * * * *'  # runs every hour
-  workflow_dispatch:      # allows manual trigger
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:      # manual trigger
 
 jobs:
   scrape:
@@ -13,23 +13,31 @@ jobs:
       # Step 1: Checkout repository
       - uses: actions/checkout@v3
         with:
-          persist-credentials: false  # We'll use PAT explicitly
+          persist-credentials: false
 
       # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
       # Step 3: Install dependencies
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium
 
-      # Step 4: Run your scraper
+      # Step 4: Install Chromium & ChromeDriver
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser chromium-chromedriver
+
+      # Step 5: Run scraper
       - name: Run scraper
         run: python fetch_data.py
 
-      # Step 5: Commit & Push transactions.json using PAT
+      # Step 6: Commit & Push transactions.json using PAT
       - name: Commit & Push transactions.json
         run: |
           git config --global user.name "github-actions"
