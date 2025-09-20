@@ -26,6 +26,30 @@
                 "Y"
             ]
         ],
-        "LAST_UPDATED": "2025-09-20 13:15:14"
+        "LAST_UPDATED": "2025-09-20 13:19:22",
+        "KYC_INFO": [
+            [
+                "KYCStatus"
+            ],
+            [
+                "1",
+                "SINGULURI Manikanta",
+                "Male",
+                "25",
+                "SON",
+                "Active",
+                "Y"
+            ],
+            [
+                "2",
+                "Singuluri Venkatalakshmi",
+                "Female",
+                "49",
+                "SELF",
+                "Active",
+                "Y"
+            ]
+        ],
+        "MONTHLY_TRANSACTIONS": []
     }
 ]
