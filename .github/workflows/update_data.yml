@@ -13,7 +13,7 @@ jobs:
       # Step 1: Checkout repository
       - uses: actions/checkout@v3
         with:
-          persist-credentials: true  # allows push with GITHUB_TOKEN
+          persist-credentials: false  # We'll use PAT explicitly
 
       # Step 2: Set up Python
       - name: Set up Python
@@ -29,11 +29,16 @@ jobs:
       - name: Run scraper
         run: python fetch_data.py
 
-      # Step 5: Commit & Push transactions.json
+      # Step 5: Commit & Push transactions.json using PAT
       - name: Commit & Push transactions.json
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add transactions.json
           git diff --cached --quiet || git commit -m "Update current month transactions"
-          git push
+
+          # Detect current branch
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+          # Push using Personal Access Token
+          git push https://x-access-token:${{ secrets.MY_PAT }}@github.com/${{ github.repository }}.git $CURRENT_BRANCH
