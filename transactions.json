@@ -3,7 +3,29 @@
         "CARDNO": "2822192607",
         "HEAD_OF_THE_FAMILY": "Unknown",
         "UNITS": "2",
-        "TRANSITION_HISTORY": [],
-        "LAST_UPDATED": "2025-09-20 13:11:53"
+        "TRANSITION_HISTORY": [
+            [
+                "KYCStatus"
+            ],
+            [
+                "1",
+                "SINGULURI Manikanta",
+                "Male",
+                "25",
+                "SON",
+                "Active",
+                "Y"
+            ],
+            [
+                "2",
+                "Singuluri Venkatalakshmi",
+                "Female",
+                "49",
+                "SELF",
+                "Active",
+                "Y"
+            ]
+        ],
+        "LAST_UPDATED": "2025-09-20 13:15:14"
     }
 ]
