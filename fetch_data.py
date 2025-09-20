@@ -8,9 +8,9 @@ from selenium.webdriver.common.by import By
 
 # Configuration
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
-TARGET_CARDNO = os.getenv("CARDNO", "2822192607")
+INPUT_FILE = "10.json"           # file containing card numbers
 TRANSACTIONS_FILE = "transactions.json"
-TARGET_MONTH = 9   # September
+TARGET_MONTH = 9                 # September
 TARGET_YEAR = 2025
 
 def setup_driver(headless=True):
@@ -20,14 +20,12 @@ def setup_driver(headless=True):
         chrome_options.add_argument("--headless=new")  # new headless mode
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-
     # Use Chromium installed in GitHub Actions
     chrome_options.binary_location = "/usr/bin/chromium-browser"
-
     return webdriver.Chrome(options=chrome_options)
 
 def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch transactions for a given month/year from AP POS website."""
+    """Fetch transactions for a given card and month/year from AP POS."""
     driver = setup_driver()
     try:
         driver.get(BASE_URL + cardno)
@@ -56,13 +54,12 @@ def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
                         })
                 except ValueError:
                     continue
-
         return transactions
     finally:
         driver.quit()
 
-def update_current_month_transactions(cardno, monthly_data):
-    """Update transactions.json with current month data."""
+def update_transactions_json(cardno, monthly_data):
+    """Update transactions.json with the latest monthly data for a card."""
     if os.path.exists(TRANSACTIONS_FILE):
         with open(TRANSACTIONS_FILE, "r") as f:
             transactions = json.load(f)
@@ -83,14 +80,29 @@ def update_current_month_transactions(cardno, monthly_data):
     with open(TRANSACTIONS_FILE, "w") as f:
         json.dump(transactions, f, indent=4)
 
-    print(f"Updated current month transactions for CARDNO {cardno} in {TRANSACTIONS_FILE}")
+    print(f"Updated transactions for CARDNO {cardno}")
 
+def load_card_numbers(file_path=INPUT_FILE):
+    """Load all card numbers from the input JSON file."""
+    if not os.path.exists(file_path):
+        print(f"{file_path} not found.")
+        return []
+    with open(file_path, "r") as f:
+        data = json.load(f)
+    return [entry.get("CARDNO") for entry in data if "CARDNO" in entry]
+
+def main():
+    card_numbers = load_card_numbers()
+    if not card_numbers:
+        print("No card numbers found in input file.")
+        return
+
+    for cardno in card_numbers:
+        monthly_data = fetch_monthly_transactions(cardno)
+        if monthly_data:
+            update_transactions_json(cardno, monthly_data)
+        else:
+            print(f"No transactions found for CARDNO {cardno} for {TARGET_MONTH}/{TARGET_YEAR}")
 
 if __name__ == "__main__":
-    monthly_data = fetch_monthly_transactions(TARGET_CARDNO)
-    if monthly_data:
-        for tx in monthly_data:
-            print(tx)
-        update_current_month_transactions(TARGET_CARDNO, monthly_data)
-    else:
-        print(f"No transactions found for {TARGET_MONTH}/{TARGET_YEAR} for CARDNO {TARGET_CARDNO}")
+    main()
