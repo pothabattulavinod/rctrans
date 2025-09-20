@@ -13,7 +13,7 @@ jobs:
       # Step 1: Checkout repository
       - uses: actions/checkout@v3
         with:
-          persist-credentials: false  # We'll use PAT explicitly
+          persist-credentials:  true # We'll use PAT explicitly
 
       # Step 2: Set up Python
       - name: Set up Python
