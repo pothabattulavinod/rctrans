@@ -1,49 +1,44 @@
-import requests
-from bs4 import BeautifulSoup
-import json
-from datetime import datetime
 import os
+import json
+import time
+from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
-TARGET_CARDNO = "2822192607"
+TARGET_CARDNO = os.getenv("CARDNO", "2822192607")
 TRANSACTIONS_FILE = "transactions.json"
-
-# Specify month and year for transactions
 TARGET_MONTH = 9   # September
 TARGET_YEAR = 2025
 
+def setup_driver(headless=True):
+    """Set up Selenium Chrome WebDriver."""
+    chrome_options = Options()
+    if headless:
+        chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    return webdriver.Chrome(options=chrome_options)
+
 def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch current month transaction details as structured JSON."""
-    url = BASE_URL + cardno
+    """Fetch transactions for a given month/year from the AP POS website."""
+    driver = setup_driver()
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        driver.get(BASE_URL + cardno)
+        time.sleep(3)  # Wait for page to load
 
-        # Identify the transaction table by header names
-        tables = soup.find_all('table')
-        transaction_table = None
-        for table in tables:
-            headers = [th.get_text(strip=True) for th in table.find_all('th')]
-            if 'Sl.No' in headers and 'Avail. Date' in headers:
-                transaction_table = table
-                break
+        table = driver.find_element(By.XPATH, "//table[contains(., 'Sl.No') and contains(., 'Avail. Date')]")
+        rows = table.find_elements(By.TAG_NAME, "tr")[3:]  # Skip header rows
 
-        if not transaction_table:
-            print(f"No transaction table found for CARDNO {cardno}")
-            return []
-
-        # Skip header rows
-        rows = transaction_table.find_all('tr')[3:]
         transactions = []
-
         for row in rows:
-            cols = [td.get_text(strip=True) for td in row.find_all('td')]
+            cols = [td.text.strip() for td in row.find_elements(By.TAG_NAME, "td")]
             if len(cols) >= 9:
                 try:
                     avail_date = datetime.strptime(cols[5], "%d-%m-%Y")
                     if avail_date.month == month and avail_date.year == year:
-                        transaction = {
+                        transactions.append({
                             "SlNo": int(cols[0]),
                             "Member": cols[1],
                             "AvailedFPS": cols[2],
@@ -53,19 +48,16 @@ def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
                             "AvailType": cols[6],
                             "SugarKG": float(cols[7].replace(",", "")),
                             "RiceKG": float(cols[8].replace(",", ""))
-                        }
-                        transactions.append(transaction)
+                        })
                 except ValueError:
                     continue
 
         return transactions
-
-    except requests.RequestException as e:
-        print(f"HTTP error fetching CARDNO {cardno}: {e}")
-        return []
+    finally:
+        driver.quit()
 
 def update_current_month_transactions(cardno, monthly_data):
-    """Update only the current month transactions in transactions.json."""
+    """Update transactions.json with current month data."""
     if os.path.exists(TRANSACTIONS_FILE):
         with open(TRANSACTIONS_FILE, "r") as f:
             transactions = json.load(f)
@@ -90,8 +82,10 @@ def update_current_month_transactions(cardno, monthly_data):
 
 
 if __name__ == "__main__":
-    monthly_data = fetch_monthly_transactions(TARGET_CARDNO, month=TARGET_MONTH, year=TARGET_YEAR)
+    monthly_data = fetch_monthly_transactions(TARGET_CARDNO)
     if monthly_data:
+        for tx in monthly_data:
+            print(tx)
         update_current_month_transactions(TARGET_CARDNO, monthly_data)
     else:
-        print("No transactions found for the current month.")
+        print(f"No transactions found for {TARGET_MONTH}/{TARGET_YEAR} for CARDNO {TARGET_CARDNO}")
