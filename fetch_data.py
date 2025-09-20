@@ -55,6 +55,6 @@ def fetch_all_cards(cards):
     print("All card data saved to transactions.json!")
 
 if __name__ == "__main__":
-    with open("cards.json") as f:
+    with open("10.json") as f:
         cards = json.load(f)
     fetch_all_cards(cards)
