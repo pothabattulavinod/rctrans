@@ -24,7 +24,7 @@ def fetch_card_data(card):
             cols = [c.text.strip() for c in row.find_all('td')]
             if cols:
                 try:
-                    date_obj = datetime.strptime(cols[0], "%d-%m-%Y")  # adjust format if needed
+                    date_obj = datetime.strptime(cols[0], "%d-%m-%Y")
                     if date_obj.month == CURRENT_MONTH and date_obj.year == CURRENT_YEAR:
                         transition_history.append(cols)
                 except:
@@ -48,12 +48,12 @@ if __name__ == "__main__":
     with open("10.json") as f:
         cards = json.load(f)
 
-    # Load existing transactions or create empty dict
+    # Load existing transactions as a list
     if os.path.exists(TRANSACTIONS_FILE):
         with open(TRANSACTIONS_FILE) as f:
             transactions = json.load(f)
     else:
-        transactions = {}
+        transactions = []
 
     # Find target card
     target_card = next((c for c in cards if c.get("CARDNO") == TARGET_CARDNO), None)
@@ -61,10 +61,20 @@ if __name__ == "__main__":
     if target_card:
         data = fetch_card_data(target_card)
         if data:
-            # Update transactions.json with this card data
-            transactions[TARGET_CARDNO] = data
+            # Check if the card already exists in transactions
+            updated = False
+            for i, t in enumerate(transactions):
+                if t.get("CARDNO") == TARGET_CARDNO:
+                    transactions[i] = data  # update existing
+                    updated = True
+                    break
+            if not updated:
+                transactions.append(data)  # add new card
+
+            # Save back to transactions.json
             with open(TRANSACTIONS_FILE, "w") as f:
                 json.dump(transactions, f, indent=4)
+
             print(f"Data for CARDNO {TARGET_CARDNO} saved to {TRANSACTIONS_FILE}")
         else:
             print("Failed to fetch card data.")
