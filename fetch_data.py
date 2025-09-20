@@ -6,6 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
+# Configuration
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
 TARGET_CARDNO = os.getenv("CARDNO", "2822192607")
 TRANSACTIONS_FILE = "transactions.json"
@@ -13,20 +14,24 @@ TARGET_MONTH = 9   # September
 TARGET_YEAR = 2025
 
 def setup_driver(headless=True):
-    """Set up Selenium Chrome WebDriver."""
+    """Set up Selenium Chrome WebDriver with GitHub Actions compatible binary."""
     chrome_options = Options()
     if headless:
-        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless=new")  # new headless mode
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Use Chromium installed in GitHub Actions
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
+
     return webdriver.Chrome(options=chrome_options)
 
 def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch transactions for a given month/year from the AP POS website."""
+    """Fetch transactions for a given month/year from AP POS website."""
     driver = setup_driver()
     try:
         driver.get(BASE_URL + cardno)
-        time.sleep(3)  # Wait for page to load
+        time.sleep(3)  # Wait for page/table to load
 
         table = driver.find_element(By.XPATH, "//table[contains(., 'Sl.No') and contains(., 'Avail. Date')]")
         rows = table.find_elements(By.TAG_NAME, "tr")[3:]  # Skip header rows
