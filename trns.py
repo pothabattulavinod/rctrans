@@ -5,8 +5,6 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 BASE_URL = "https://aepos.ap.gov.in/Qcodesearch.jsp?rcno="
-
-# Get current month and year
 CURRENT_MONTH = datetime.now().month
 CURRENT_YEAR = datetime.now().year
 
@@ -20,16 +18,15 @@ def fetch_card_data(card):
         rows = table.find_all('tr') if table else []
 
         transition_history = []
-        for row in rows[1:]:  # skip header
+        for row in rows[1:]:
             cols = [c.text.strip() for c in row.find_all('td')]
             if cols:
-                # Assuming the first column is the date
                 try:
                     date_obj = datetime.strptime(cols[0], "%d-%m-%Y")  # adjust format if needed
                     if date_obj.month == CURRENT_MONTH and date_obj.year == CURRENT_YEAR:
                         transition_history.append(cols)
                 except:
-                    continue  # skip if date format doesn't match
+                    continue
 
         return {
             "CARDNO": card["CARDNO"],
@@ -45,16 +42,19 @@ def fetch_card_data(card):
 
 def fetch_all_cards(cards):
     all_data = []
-    with ThreadPoolExecutor(max_workers=20) as executor:  # 20 parallel threads
+    with ThreadPoolExecutor(max_workers=20) as executor:
         results = executor.map(fetch_card_data, cards)
         for result in results:
             if result:
                 all_data.append(result)
 
-    with open("data.json", "w") as f:
+    # Save with timestamp in filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"data_{timestamp}.json"
+    with open(filename, "w") as f:
         json.dump(all_data, f, indent=4)
 
-    print("All card data for current month updated successfully!")
+    print(f"All card data saved to {filename}!")
 
 if __name__ == "__main__":
     with open("cards.json") as f:
