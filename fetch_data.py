@@ -26,7 +26,7 @@ def fetch_card_data(card):
         if table:
             rows = table.find_all('tr')
             for row in rows[1:]:  # skip header
-                cols = [c.text.strip() for c in row.find_all('td')]
+                cols = [c.get_text(strip=True) for c in row.find_all('td')]
                 if cols:
                     kyc_data.append(cols)
 
@@ -43,14 +43,14 @@ def fetch_card_data(card):
         return None
 
 def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
-    """Fetch monthly transaction details for the card as structured JSON."""
+    """Fetch current month transaction details as structured JSON."""
     url = BASE_URL + card["CARDNO"]
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Find table containing transaction headers
+        # Identify the transaction table by header names
         tables = soup.find_all('table')
         transaction_table = None
         for table in tables:
@@ -63,7 +63,8 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
             print(f"No transaction table found for CARDNO {card['CARDNO']}")
             return []
 
-        rows = transaction_table.find_all('tr')[3:]  # Skip 3 header rows
+        # Skip the first 3 header rows (merged headers)
+        rows = transaction_table.find_all('tr')[3:]
         transactions = []
 
         for row in rows:
@@ -80,12 +81,12 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
                             "AllottedYear": int(cols[4]),
                             "AvailDate": avail_date.strftime("%Y-%m-%d"),
                             "AvailType": cols[6],
-                            "SugarKG": float(cols[7]),
-                            "RiceKG": float(cols[8])
+                            "SugarKG": float(cols[7].replace(",", "")),
+                            "RiceKG": float(cols[8].replace(",", ""))
                         }
                         transactions.append(transaction)
                 except ValueError:
-                    continue  # Skip rows with invalid data
+                    continue
 
         return transactions
 
@@ -135,4 +136,3 @@ if __name__ == "__main__":
         update_transactions(kyc_data, monthly_data)
     else:
         print("Failed to fetch card data.")
-    
