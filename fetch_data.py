@@ -12,39 +12,9 @@ TRANSACTIONS_FILE = "transactions.json"
 TARGET_MONTH = 9   # September
 TARGET_YEAR = 2025
 
-def fetch_card_data(card):
-    """Fetch member/KYC info for the card."""
-    url = BASE_URL + card["CARDNO"]
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Assume first table is member/KYC info
-        table = soup.find('table')
-        kyc_data = []
-        if table:
-            rows = table.find_all('tr')
-            for row in rows[1:]:  # skip header
-                cols = [c.get_text(strip=True) for c in row.find_all('td')]
-                if cols:
-                    kyc_data.append(cols)
-
-        return {
-            "CARDNO": card.get("CARDNO"),
-            "HEAD_OF_THE_FAMILY": card.get("HEAD_OF_THE_FAMILY", "Unknown"),
-            "UNITS": card.get("UNITS", "Unknown"),
-            "KYC_INFO": kyc_data,
-            "LAST_UPDATED": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-    except requests.RequestException as e:
-        print(f"HTTP error fetching CARDNO {card['CARDNO']}: {e}")
-        return None
-
-def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
+def fetch_monthly_transactions(cardno, month=TARGET_MONTH, year=TARGET_YEAR):
     """Fetch current month transaction details as structured JSON."""
-    url = BASE_URL + card["CARDNO"]
+    url = BASE_URL + cardno
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -60,10 +30,10 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
                 break
 
         if not transaction_table:
-            print(f"No transaction table found for CARDNO {card['CARDNO']}")
+            print(f"No transaction table found for CARDNO {cardno}")
             return []
 
-        # Skip the first 3 header rows (merged headers)
+        # Skip header rows
         rows = transaction_table.find_all('tr')[3:]
         transactions = []
 
@@ -91,48 +61,37 @@ def fetch_monthly_transactions(card, month=TARGET_MONTH, year=TARGET_YEAR):
         return transactions
 
     except requests.RequestException as e:
-        print(f"HTTP error fetching CARDNO {card['CARDNO']}: {e}")
+        print(f"HTTP error fetching CARDNO {cardno}: {e}")
         return []
 
-def update_transactions(data, monthly_data):
-    """Update transactions.json with card KYC and monthly transaction info."""
+def update_current_month_transactions(cardno, monthly_data):
+    """Update only the current month transactions in transactions.json."""
     if os.path.exists(TRANSACTIONS_FILE):
         with open(TRANSACTIONS_FILE, "r") as f:
             transactions = json.load(f)
     else:
         transactions = []
 
-    existing_card = next((t for t in transactions if t.get("CARDNO") == data["CARDNO"]), None)
+    existing_card = next((t for t in transactions if t.get("CARDNO") == cardno), None)
     if existing_card:
-        existing_card["KYC_INFO"] = data.get("KYC_INFO", existing_card.get("KYC_INFO", []))
         existing_card["MONTHLY_TRANSACTIONS"] = monthly_data
-        existing_card["LAST_UPDATED"] = data["LAST_UPDATED"]
+        existing_card["LAST_UPDATED"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     else:
-        data["MONTHLY_TRANSACTIONS"] = monthly_data
-        transactions.append(data)
+        transactions.append({
+            "CARDNO": cardno,
+            "MONTHLY_TRANSACTIONS": monthly_data,
+            "LAST_UPDATED": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
 
     with open(TRANSACTIONS_FILE, "w") as f:
         json.dump(transactions, f, indent=4)
 
-    print(f"Data for CARDNO {data['CARDNO']} saved/updated in {TRANSACTIONS_FILE}")
+    print(f"Updated current month transactions for CARDNO {cardno} in {TRANSACTIONS_FILE}")
+
 
 if __name__ == "__main__":
-    if not os.path.exists("10.json"):
-        print("10.json file not found!")
-        exit(1)
-
-    with open("10.json", "r") as f:
-        cards = json.load(f)
-
-    target_card = next((c for c in cards if c.get("CARDNO") == TARGET_CARDNO), None)
-    if not target_card:
-        print(f"CARDNO {TARGET_CARDNO} not found in 10.json")
-        exit(1)
-
-    kyc_data = fetch_card_data(target_card)
-    monthly_data = fetch_monthly_transactions(target_card, month=TARGET_MONTH, year=TARGET_YEAR)
-
-    if kyc_data:
-        update_transactions(kyc_data, monthly_data)
+    monthly_data = fetch_monthly_transactions(TARGET_CARDNO, month=TARGET_MONTH, year=TARGET_YEAR)
+    if monthly_data:
+        update_current_month_transactions(TARGET_CARDNO, monthly_data)
     else:
-        print("Failed to fetch card data.")
+        print("No transactions found for the current month.")
